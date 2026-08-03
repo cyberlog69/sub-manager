@@ -2,11 +2,11 @@ package com.submanager.app.ui.screens
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -60,7 +60,7 @@ fun MainScreen(viewModel: SubscriptionViewModel) {
                 NavigationBarItem(
                     selected = currentScreen == Screen.SUBSCRIPTIONS,
                     onClick = { currentScreen = Screen.SUBSCRIPTIONS },
-                    icon = { Icon(Icons.Default.ListAlt, contentDescription = "Subs") },
+                    icon = { Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = "Subs") },
                     label = { Text("Subs") }
                 )
                 NavigationBarItem(

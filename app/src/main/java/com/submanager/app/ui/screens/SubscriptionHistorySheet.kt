@@ -60,7 +60,7 @@ fun SubscriptionHistorySheet(
     val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
 
     // Calculate upcoming 4 billing dates
-    val upcomingDates = rememberUpcomingDates(subscription.nextDueDate, subscription.billingCycle)
+    val upcomingDates = calculateUpcomingDates(subscription.nextDueDate, subscription.billingCycle)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -301,14 +301,14 @@ fun PaymentHistoryCard(
     }
 }
 
-private fun rememberUpcomingDates(nextDueDateMs: Long, cycleStr: String): List<Long> {
+private fun calculateUpcomingDates(nextDueDateMs: Long, cycleStr: String): List<Long> {
     val result = mutableListOf<Long>()
     val cycle = try { BillingCycle.valueOf(cycleStr) } catch (e: Exception) { BillingCycle.MONTHLY }
 
     val cal = Calendar.getInstance()
     cal.timeInMillis = nextDueDateMs
 
-    for (i in 0 until 4) {
+    for (_i in 0 until 4) {
         result.add(cal.timeInMillis)
         when (cycle) {
             BillingCycle.WEEKLY -> cal.add(Calendar.WEEK_OF_YEAR, 1)

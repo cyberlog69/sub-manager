@@ -247,8 +247,8 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
         for (sub in list) {
             if (sub.status == SubscriptionStatus.ACTIVE.name || sub.status == SubscriptionStatus.TRIAL.name) {
                 activeCount++
-                val cycle = try { BillingCycle.valueOf(sub.billingCycle) } catch (e: Exception) { BillingCycle.MONTHLY }
-                val cat = try { SubscriptionCategory.valueOf(sub.category) } catch (e: Exception) { SubscriptionCategory.OTHER }
+                val cycle = try { BillingCycle.valueOf(sub.billingCycle) } catch (_: Exception) { BillingCycle.MONTHLY }
+                val cat = try { SubscriptionCategory.valueOf(sub.category) } catch (_: Exception) { SubscriptionCategory.OTHER }
 
                 val monthlyValue = when (cycle) {
                     BillingCycle.WEEKLY -> sub.amount * 4.33

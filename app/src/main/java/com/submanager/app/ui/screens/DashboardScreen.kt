@@ -20,11 +20,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -142,7 +142,7 @@ fun DashboardScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ReceiptLong,
+                                imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -372,7 +372,10 @@ fun SubscriptionItemCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = if (isDueSoon) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
@@ -417,12 +420,16 @@ fun SubscriptionItemCard(
                 }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
                 Text(
                     text = "${subscription.currency} ${subscription.amount}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
                 )
                 Text(
                     text = subscription.billingCycle.lowercase(),
