@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    kotlin("kapt")
 }
 
 android {
@@ -63,7 +64,7 @@ dependencies {
     // Room DB
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    // Note: room compiler configured for build or reflection fallback
+    kapt(libs.androidx.room.compiler)
     
     // Utilities
     implementation(libs.gson)
