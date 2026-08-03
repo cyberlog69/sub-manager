@@ -31,6 +31,16 @@ interface SubscriptionDao {
     @Query("DELETE FROM subscriptions WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    @Query("SELECT * FROM subscriptions WHERE name LIKE '%' || :name || '%' LIMIT 1")
+    @Query("SELECT * FROM subscriptions WHERE LOWER(name) = LOWER(:name) LIMIT 1")
     suspend fun findByName(name: String): SubscriptionEntity?
+
+    // Payment History Queries
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPaymentHistory(history: PaymentHistoryEntity): Long
+
+    @Query("SELECT * FROM payment_history WHERE subscriptionId = :subId ORDER BY paymentDate DESC")
+    fun getHistoryForSubscription(subId: Long): Flow<List<PaymentHistoryEntity>>
+
+    @Query("SELECT * FROM payment_history ORDER BY paymentDate DESC")
+    fun getAllPaymentHistory(): Flow<List<PaymentHistoryEntity>>
 }

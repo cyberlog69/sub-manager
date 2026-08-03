@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.submanager.app.data.local.AppDatabase
+import com.submanager.app.data.local.PaymentHistoryEntity
 import com.submanager.app.data.local.SubscriptionEntity
 import com.submanager.app.data.model.BillingCycle
 import com.submanager.app.data.model.DiscoveredItem
@@ -13,6 +14,7 @@ import com.submanager.app.data.model.SubscriptionStatus
 import com.submanager.app.data.repository.SubscriptionRepository
 import com.submanager.app.engine.EmailReceiptParserEngine
 import com.submanager.app.engine.SmsParserEngine
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,7 +51,6 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
     val userCurrency = _userCurrency.asStateFlow()
 
     val filteredSubscriptions: StateFlow<List<SubscriptionEntity>>
-
     val analytics: StateFlow<SpendAnalytics>
 
     init {
@@ -95,6 +96,14 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
         _userCurrency.value = currency
     }
 
+    fun getPaymentHistoryForSubscription(subId: Long): Flow<List<PaymentHistoryEntity>> {
+        return repository.getHistoryForSubscription(subId)
+    }
+
+    /**
+     * Smart Add / Deduplication logic:
+     * If a subscription with the same service name already exists, update it and add a new entry to PaymentHistory!
+     */
     fun addSubscription(
         name: String,
         amount: Double,
@@ -104,24 +113,67 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
         providerType: ProviderType = ProviderType.MANUAL,
         notes: String = "",
         paymentMethod: String = "UPI / Card",
-        nextDueDate: Date = getDefaultDueDate()
+        nextDueDate: Date = getDefaultDueDate(),
+        rawSnippet: String = ""
     ) {
         viewModelScope.launch {
-            val entity = SubscriptionEntity(
-                name = name,
-                amount = amount,
-                currency = currency,
-                billingCycle = billingCycle.name,
-                category = category.name,
-                providerType = providerType.name,
-                status = SubscriptionStatus.ACTIVE.name,
-                startDate = System.currentTimeMillis(),
-                nextDueDate = nextDueDate.time,
-                notes = notes,
-                paymentMethod = paymentMethod,
-                iconName = category.iconName
-            )
-            repository.insertSubscription(entity)
+            val existing = repository.findByName(name.trim())
+            if (existing != null) {
+                // Update existing subscription instead of creating a duplicate
+                val updated = existing.copy(
+                    amount = amount,
+                    currency = currency,
+                    billingCycle = billingCycle.name,
+                    category = category.name,
+                    providerType = providerType.name,
+                    nextDueDate = nextDueDate.time,
+                    notes = if (notes.isNotBlank()) notes else existing.notes
+                )
+                repository.updateSubscription(updated)
+
+                // Insert payment history log
+                repository.insertPaymentHistory(
+                    PaymentHistoryEntity(
+                        subscriptionId = existing.id,
+                        serviceName = existing.name,
+                        amount = amount,
+                        currency = currency,
+                        paymentDate = System.currentTimeMillis(),
+                        source = providerType.name,
+                        rawSnippet = rawSnippet.ifBlank { "Recorded payment charge" }
+                    )
+                )
+            } else {
+                // Insert new subscription
+                val entity = SubscriptionEntity(
+                    name = name.trim(),
+                    amount = amount,
+                    currency = currency,
+                    billingCycle = billingCycle.name,
+                    category = category.name,
+                    providerType = providerType.name,
+                    status = SubscriptionStatus.ACTIVE.name,
+                    startDate = System.currentTimeMillis(),
+                    nextDueDate = nextDueDate.time,
+                    notes = notes,
+                    paymentMethod = paymentMethod,
+                    iconName = category.iconName
+                )
+                val newId = repository.insertSubscription(entity)
+
+                // Record initial payment history
+                repository.insertPaymentHistory(
+                    PaymentHistoryEntity(
+                        subscriptionId = newId,
+                        serviceName = name.trim(),
+                        amount = amount,
+                        currency = currency,
+                        paymentDate = System.currentTimeMillis(),
+                        source = providerType.name,
+                        rawSnippet = rawSnippet.ifBlank { "Initial detected payment" }
+                    )
+                )
+            }
         }
     }
 
@@ -172,7 +224,8 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
             billingCycle = item.billingCycle,
             category = item.category,
             providerType = item.source,
-            notes = "Auto-detected from ${item.source.displayName}"
+            notes = "Auto-detected from ${item.source.displayName}",
+            rawSnippet = item.rawTextSnippet
         )
         dismissDiscoveredItem(item)
     }
@@ -229,7 +282,7 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
         val cal = Calendar.getInstance()
 
         val sample1 = SubscriptionEntity(
-            name = "Netflix Premium",
+            name = "Netflix",
             amount = 649.0,
             currency = "INR",
             billingCycle = BillingCycle.MONTHLY.name,
@@ -237,11 +290,18 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
             providerType = ProviderType.SMS_DETECTED.name,
             nextDueDate = cal.apply { add(Calendar.DAY_OF_MONTH, 3) }.timeInMillis,
             paymentMethod = "Credit Card",
-            notes = "Auto-renew via SMS detection"
+            notes = "Auto-renew active"
         )
+        val id1 = repository.insertSubscription(sample1)
+
+        // Seed 3 past monthly payment logs for Netflix
+        val monthMs = 30L * 24 * 60 * 60 * 1000
+        repository.insertPaymentHistory(PaymentHistoryEntity(subscriptionId = id1, serviceName = "Netflix", amount = 649.0, currency = "INR", paymentDate = System.currentTimeMillis() - (1 * monthMs), source = "SMS_DETECTED", rawSnippet = "INR 649.00 debited for Netflix Monthly Plan"))
+        repository.insertPaymentHistory(PaymentHistoryEntity(subscriptionId = id1, serviceName = "Netflix", amount = 649.0, currency = "INR", paymentDate = System.currentTimeMillis() - (2 * monthMs), source = "SMS_DETECTED", rawSnippet = "INR 649.00 debited for Netflix Monthly Plan"))
+        repository.insertPaymentHistory(PaymentHistoryEntity(subscriptionId = id1, serviceName = "Netflix", amount = 649.0, currency = "INR", paymentDate = System.currentTimeMillis() - (3 * monthMs), source = "SMS_DETECTED", rawSnippet = "INR 649.00 debited for Netflix Monthly Plan"))
 
         val sample2 = SubscriptionEntity(
-            name = "Spotify Duo",
+            name = "Spotify",
             amount = 179.0,
             currency = "INR",
             billingCycle = BillingCycle.MONTHLY.name,
@@ -250,6 +310,8 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
             nextDueDate = cal.apply { add(Calendar.DAY_OF_MONTH, 12) }.timeInMillis,
             paymentMethod = "UPI AutoPay"
         )
+        val id2 = repository.insertSubscription(sample2)
+        repository.insertPaymentHistory(PaymentHistoryEntity(subscriptionId = id2, serviceName = "Spotify", amount = 179.0, currency = "INR", paymentDate = System.currentTimeMillis() - (1 * monthMs), source = "SMS_DETECTED", rawSnippet = "INR 179.00 debited for Spotify Subscription"))
 
         val sample3 = SubscriptionEntity(
             name = "ChatGPT Plus",
@@ -261,6 +323,8 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
             nextDueDate = cal.apply { add(Calendar.DAY_OF_MONTH, 18) }.timeInMillis,
             paymentMethod = "Debit Card"
         )
+        val id3 = repository.insertSubscription(sample3)
+        repository.insertPaymentHistory(PaymentHistoryEntity(subscriptionId = id3, serviceName = "ChatGPT Plus", amount = 20.0, currency = "USD", paymentDate = System.currentTimeMillis() - (1 * monthMs), source = "EMAIL_DETECTED", rawSnippet = "Receipt for OpenAI ChatGPT Plus subscription"))
 
         val sample4 = SubscriptionEntity(
             name = "Amazon Prime",
@@ -272,11 +336,8 @@ class SubscriptionViewModel(application: Application) : AndroidViewModel(applica
             nextDueDate = cal.apply { add(Calendar.DAY_OF_MONTH, 45) }.timeInMillis,
             paymentMethod = "Credit Card"
         )
-
-        repository.insertSubscription(sample1)
-        repository.insertSubscription(sample2)
-        repository.insertSubscription(sample3)
-        repository.insertSubscription(sample4)
+        val id4 = repository.insertSubscription(sample4)
+        repository.insertPaymentHistory(PaymentHistoryEntity(subscriptionId = id4, serviceName = "Amazon Prime", amount = 1499.0, currency = "INR", paymentDate = System.currentTimeMillis() - (365 * 24 * 60 * 60 * 1000L), source = "MANUAL", rawSnippet = "Annual Membership auto-renew"))
     }
 
     private fun getDefaultDueDate(): Date {

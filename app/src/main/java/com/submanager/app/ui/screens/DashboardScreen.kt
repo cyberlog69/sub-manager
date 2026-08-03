@@ -1,6 +1,7 @@
 package com.submanager.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,7 +48,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.submanager.app.data.local.SubscriptionEntity
 import com.submanager.app.data.model.SubscriptionCategory
 import com.submanager.app.ui.viewmodel.SubscriptionViewModel
@@ -60,7 +60,8 @@ import java.util.Locale
 fun DashboardScreen(
     viewModel: SubscriptionViewModel,
     onAddNewClick: () -> Unit,
-    onNavigateToDetector: () -> Unit
+    onNavigateToDetector: () -> Unit,
+    onSubscriptionClick: (SubscriptionEntity) -> Unit
 ) {
     val analytics by viewModel.analytics.collectAsState()
     val subscriptions by viewModel.subscriptions.collectAsState()
@@ -328,8 +329,8 @@ fun DashboardScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "See All",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "Tap any to view history",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -337,20 +338,28 @@ fun DashboardScreen(
         }
 
         items(upcomingRenewals) { sub ->
-            SubscriptionItemCard(subscription = sub)
+            SubscriptionItemCard(
+                subscription = sub,
+                onClick = { onSubscriptionClick(sub) }
+            )
         }
     }
 }
 
 @Composable
-fun SubscriptionItemCard(subscription: SubscriptionEntity) {
+fun SubscriptionItemCard(
+    subscription: SubscriptionEntity,
+    onClick: () -> Unit
+) {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     val dueDateStr = dateFormat.format(Date(subscription.nextDueDate))
 
     val isDueSoon = (subscription.nextDueDate - System.currentTimeMillis()) < (3L * 24 * 60 * 60 * 1000)
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surface

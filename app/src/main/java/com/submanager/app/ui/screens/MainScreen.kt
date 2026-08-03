@@ -38,10 +38,13 @@ enum class Screen(val title: String) {
 @Composable
 fun MainScreen(viewModel: SubscriptionViewModel) {
     var currentScreen by remember { mutableStateOf(Screen.DASHBOARD) }
-    var showSheet by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
+    var showHistorySheet by remember { mutableStateOf(false) }
     var editingSubscription by remember { mutableStateOf<SubscriptionEntity?>(null) }
+    var selectedHistorySubscription by remember { mutableStateOf<SubscriptionEntity?>(null) }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val editSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val historySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Scaffold(
         bottomBar = {
@@ -85,7 +88,7 @@ fun MainScreen(viewModel: SubscriptionViewModel) {
                 FloatingActionButton(
                     onClick = {
                         editingSubscription = null
-                        showSheet = true
+                        showEditSheet = true
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -101,15 +104,23 @@ fun MainScreen(viewModel: SubscriptionViewModel) {
                     viewModel = viewModel,
                     onAddNewClick = {
                         editingSubscription = null
-                        showSheet = true
+                        showEditSheet = true
                     },
-                    onNavigateToDetector = { currentScreen = Screen.DETECTOR }
+                    onNavigateToDetector = { currentScreen = Screen.DETECTOR },
+                    onSubscriptionClick = { sub ->
+                        selectedHistorySubscription = sub
+                        showHistorySheet = true
+                    }
                 )
                 Screen.SUBSCRIPTIONS -> SubscriptionsScreen(
                     viewModel = viewModel,
+                    onSubscriptionClick = { sub ->
+                        selectedHistorySubscription = sub
+                        showHistorySheet = true
+                    },
                     onEditClick = { sub ->
                         editingSubscription = sub
-                        showSheet = true
+                        showEditSheet = true
                     }
                 )
                 Screen.DETECTOR -> DetectorScreen(viewModel = viewModel)
@@ -118,11 +129,12 @@ fun MainScreen(viewModel: SubscriptionViewModel) {
             }
         }
 
-        if (showSheet) {
+        // Add / Edit Sheet
+        if (showEditSheet) {
             AddEditSubscriptionSheet(
-                sheetState = sheetState,
+                sheetState = editSheetState,
                 existingSubscription = editingSubscription,
-                onDismiss = { showSheet = false },
+                onDismiss = { showEditSheet = false },
                 onSave = { name, amount, currency, cycle, category, paymentMethod, notes ->
                     if (editingSubscription == null) {
                         viewModel.addSubscription(
@@ -146,6 +158,19 @@ fun MainScreen(viewModel: SubscriptionViewModel) {
                         )
                         viewModel.updateSubscription(updated)
                     }
+                }
+            )
+        }
+
+        // History & Timeline Sheet
+        if (showHistorySheet && selectedHistorySubscription != null) {
+            SubscriptionHistorySheet(
+                subscription = selectedHistorySubscription!!,
+                viewModel = viewModel,
+                sheetState = historySheetState,
+                onDismiss = {
+                    showHistorySheet = false
+                    selectedHistorySubscription = null
                 }
             )
         }

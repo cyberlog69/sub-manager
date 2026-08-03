@@ -1,5 +1,6 @@
 package com.submanager.app.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -47,6 +49,7 @@ import java.util.Locale
 @Composable
 fun SubscriptionsScreen(
     viewModel: SubscriptionViewModel,
+    onSubscriptionClick: (SubscriptionEntity) -> Unit,
     onEditClick: (SubscriptionEntity) -> Unit
 ) {
     val subscriptions by viewModel.filteredSubscriptions.collectAsState()
@@ -133,6 +136,7 @@ fun SubscriptionsScreen(
                 items(subscriptions, key = { it.id }) { sub ->
                     SubscriptionDetailCard(
                         subscription = sub,
+                        onClick = { onSubscriptionClick(sub) },
                         onEdit = { onEditClick(sub) },
                         onDelete = { viewModel.deleteSubscription(sub) }
                     )
@@ -145,6 +149,7 @@ fun SubscriptionsScreen(
 @Composable
 fun SubscriptionDetailCard(
     subscription: SubscriptionEntity,
+    onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -152,7 +157,9 @@ fun SubscriptionDetailCard(
     val dueDateStr = dateFormat.format(Date(subscription.nextDueDate))
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
@@ -235,15 +242,19 @@ fun SubscriptionDetailCard(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Payment Method: ${subscription.paymentMethod}",
+                        text = "Tap to view history & dates",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
                 Row {
+                    IconButton(onClick = onClick) {
+                        Icon(Icons.Default.History, contentDescription = "History", tint = MaterialTheme.colorScheme.primary)
+                    }
                     IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     IconButton(onClick = onDelete) {
                         Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)

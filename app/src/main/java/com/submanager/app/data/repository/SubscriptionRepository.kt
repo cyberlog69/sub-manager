@@ -1,5 +1,6 @@
 package com.submanager.app.data.repository
 
+import com.submanager.app.data.local.PaymentHistoryEntity
 import com.submanager.app.data.local.SubscriptionDao
 import com.submanager.app.data.local.SubscriptionEntity
 import kotlinx.coroutines.flow.Flow
@@ -31,5 +32,14 @@ class SubscriptionRepository(private val subscriptionDao: SubscriptionDao) {
 
     suspend fun findByName(name: String): SubscriptionEntity? {
         return subscriptionDao.findByName(name)
+    }
+
+    // Payment History Methods
+    suspend fun insertPaymentHistory(history: PaymentHistoryEntity): Long {
+        return subscriptionDao.insertPaymentHistory(history)
+    }
+
+    fun getHistoryForSubscription(subId: Long): Flow<List<PaymentHistoryEntity>> {
+        return subscriptionDao.getHistoryForSubscription(subId)
     }
 }
